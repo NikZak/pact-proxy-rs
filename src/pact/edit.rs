@@ -1,20 +1,20 @@
-use std::error::Error;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use pact_models::pact::{read_pact, write_pact};
-use pact_models::{PactSpecification};
-use tracing::debug;
-use pact_models::pact::Pact;
-use pact_models::v4::pact::V4Pact;
-#[cfg(feature = "flame_it")]
-use flamer::flame;
-#[cfg(feature = "flame_it")]
-use flame as f;
-use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
-use pact_models::prelude::v4::SynchronousHttp;
-use url::Url;
 use crate::server::InteractionIndexMap;
 use crate::utils;
+#[cfg(feature = "flame_it")]
+use flame as f;
+#[cfg(feature = "flame_it")]
+use flamer::flame;
+use pact_models::pact::Pact;
+use pact_models::pact::{read_pact, write_pact};
+use pact_models::prelude::v4::SynchronousHttp;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use pact_models::v4::pact::V4Pact;
+use pact_models::PactSpecification;
+use std::collections::HashMap;
+use std::error::Error;
+use std::path::{Path, PathBuf};
+use tracing::debug;
+use url::Url;
 
 const CONSUMER_NAME: &str = "consumer";
 
@@ -34,10 +34,17 @@ pub fn derive_pact_file_path(pact_files_folder: &Path, pact: &V4Pact) -> PathBuf
     path
 }
 
-pub fn read_pacts(pact_files_folder:&Path) -> Result<HashMap<(String, String), V4Pact>, Box<dyn Error>> {
+pub fn read_pacts(
+    pact_files_folder: &Path,
+) -> Result<HashMap<(String, String), V4Pact>, Box<dyn Error>> {
     match utils::create_folder_if_not_exists(pact_files_folder) {
         Ok(_) => {}
-        Err(_) => {println!("Error: Can't create folder {}", pact_files_folder.to_str().unwrap());}
+        Err(_) => {
+            println!(
+                "Error: Can't create folder {}",
+                pact_files_folder.to_str().unwrap()
+            );
+        }
     }
     let mut pacts: HashMap<(String, String), V4Pact> = HashMap::new();
     for entry in std::fs::read_dir(pact_files_folder)? {
@@ -49,13 +56,18 @@ pub fn read_pacts(pact_files_folder:&Path) -> Result<HashMap<(String, String), V
             let provider_name = pact.provider.name.clone();
             pacts.insert((consumer_name, provider_name), pact);
         }
-    };
+    }
     Ok(pacts)
 }
 
 #[cfg_attr(feature = "flame_it", flame)]
-pub fn add_interaction_to_pact(pact_request: &HttpRequest, pact_response: &HttpResponse, pact: &mut V4Pact, interaction_index_map: &mut InteractionIndexMap) -> Result<(), Box<dyn Error>> {
-    let interaction = SynchronousHttp{
+pub fn add_interaction_to_pact(
+    pact_request: &HttpRequest,
+    pact_response: &HttpResponse,
+    pact: &mut V4Pact,
+    interaction_index_map: &mut InteractionIndexMap,
+) -> Result<(), Box<dyn Error>> {
+    let interaction = SynchronousHttp {
         id: None,
         key: None,
         description: pact_request.path.clone(),
@@ -66,7 +78,7 @@ pub fn add_interaction_to_pact(pact_request: &HttpRequest, pact_response: &HttpR
         pending: false,
         plugin_config: Default::default(),
         interaction_markup: Default::default(),
-        transport: None
+        transport: None,
     };
 
     add_interaction_and_amend_index(pact_request, pact, interaction_index_map, &interaction)?;
@@ -74,10 +86,18 @@ pub fn add_interaction_to_pact(pact_request: &HttpRequest, pact_response: &HttpR
     Ok(())
 }
 
-fn add_interaction_and_amend_index(pact_request: &HttpRequest, pact: &mut V4Pact, interaction_index_map: &mut InteractionIndexMap, interaction: &SynchronousHttp) -> Result<(), Box<dyn Error>> {
+fn add_interaction_and_amend_index(
+    pact_request: &HttpRequest,
+    pact: &mut V4Pact,
+    interaction_index_map: &mut InteractionIndexMap,
+    interaction: &SynchronousHttp,
+) -> Result<(), Box<dyn Error>> {
     let new_item_index = pact.interactions.len() as u16;
     pact.add_interaction(interaction)?;
-    interaction_index_map.get_mut(&(pact.consumer.name.clone(), pact.provider.name.clone())).unwrap().insert(pact_request.path.clone(), new_item_index);
+    interaction_index_map
+        .get_mut(&(pact.consumer.name.clone(), pact.provider.name.clone()))
+        .unwrap()
+        .insert(pact_request.path.clone(), new_item_index);
     assert!(pact.interactions.len() as u16 == new_item_index + 1);
     Ok(())
 }
@@ -91,7 +111,9 @@ pub fn save_pact(pact: &V4Pact, pacts_folder: &Path) -> Result<(), Box<dyn Error
 }
 
 #[cfg_attr(feature = "flame_it", flame)]
-pub fn get_consumer_provider(pact_request: &HttpRequest) -> Result<(String, String), Box<dyn Error>> {
+pub fn get_consumer_provider(
+    pact_request: &HttpRequest,
+) -> Result<(String, String), Box<dyn Error>> {
     let consumer_name = CONSUMER_NAME;
     let provider_url = Url::parse(&pact_request.path)?;
     let provider_name = provider_url.host_str().unwrap();
@@ -100,10 +122,10 @@ pub fn get_consumer_provider(pact_request: &HttpRequest) -> Result<(String, Stri
 
 #[cfg(test)]
 mod tests {
-    use pact_models::bodies::OptionalBody;
-    use pact_models::{Consumer, Provider};
-    use pact_models::v4::pact::V4Pact;
     use super::*;
+    use pact_models::bodies::OptionalBody;
+    use pact_models::v4::pact::V4Pact;
+    use pact_models::{Consumer, Provider};
 
     #[test]
     #[test_log::test(test)]
@@ -131,8 +153,16 @@ mod tests {
             ..Default::default()
         };
         let mut interaction_index_map = InteractionIndexMap::new();
-        interaction_index_map.insert(("consumer".to_string(), "provider".to_string()), HashMap::new());
-        let _ = add_interaction_to_pact(&pact_request, &pact_response, &mut pact, &mut interaction_index_map);
+        interaction_index_map.insert(
+            ("consumer".to_string(), "provider".to_string()),
+            HashMap::new(),
+        );
+        let _ = add_interaction_to_pact(
+            &pact_request,
+            &pact_response,
+            &mut pact,
+            &mut interaction_index_map,
+        );
         assert_eq!(pact.interactions().len(), 1);
     }
 }

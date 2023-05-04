@@ -4,16 +4,17 @@
 #[cfg(feature = "flame_it")]
 extern crate flame;
 #[cfg(feature = "flame_it")]
-#[macro_use] extern crate flamer;
+#[macro_use]
+extern crate flamer;
 
-mod utils;
-mod server;
-mod pact;
 mod cli;
-mod web;
+mod pact;
 mod pacts;
+mod server;
+mod utils;
+mod web;
 
-use crate::server::{PactServer};
+use crate::server::PactServer;
 
 #[tokio::main]
 async fn main() {
@@ -28,12 +29,10 @@ async fn main() {
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
-    let mut pact_server = PactServer::with_http_server(
-        &pact_files_folder,
-        None,
-        Some(port))
+    let mut pact_server = PactServer::with_http_server(&pact_files_folder, None, Some(port))
         .expect("Error creating pact server");
-    pact_server.start_blocking().await.expect("Error starting pact server");
+    pact_server
+        .start_blocking()
+        .await
+        .expect("Error starting pact server");
 }
-
-

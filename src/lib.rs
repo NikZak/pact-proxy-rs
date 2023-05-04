@@ -1,8 +1,8 @@
 #![feature(fn_traits)]
 
-pub mod server;
-pub mod pact;
 pub mod cli;
+pub mod pact;
+pub mod pacts;
+pub mod server;
 pub mod utils;
 pub mod web;
-pub mod pacts;

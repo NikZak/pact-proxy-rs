@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-use std::error::Error;
-use pact_models::bodies::OptionalBody;
-use url::Url;
-use tiny_http::Request;
-use pact_models::v4::http_parts::{HttpRequest, };
-use tracing::debug;
 #[cfg(feature = "flame_it")]
 use flamer::flame;
+use pact_models::bodies::OptionalBody;
+use pact_models::v4::http_parts::HttpRequest;
+use std::collections::HashMap;
+use std::error::Error;
+use tiny_http::Request;
+use tracing::debug;
+use url::Url;
 
 #[cfg_attr(feature = "flame_it", flame)]
 pub fn http_request_to_pact(request: &mut Request) -> Result<HttpRequest, Box<dyn Error>> {
@@ -23,7 +23,7 @@ pub fn http_request_to_pact(request: &mut Request) -> Result<HttpRequest, Box<dy
     Ok(pact_request)
 }
 
-fn set_method(request: &mut Request, pact_request: &mut HttpRequest) -> Result<(), Box<dyn Error>>{
+fn set_method(request: &mut Request, pact_request: &mut HttpRequest) -> Result<(), Box<dyn Error>> {
     if request.method() != &tiny_http::Method::Get {
         debug!("request: {:?}", request);
         return Err("Only GET requests are supported".into());
@@ -44,17 +44,24 @@ fn set_body(request: &mut Request) {
     debug!("request body: {}", content);
     match content.is_empty() {
         true => OptionalBody::Empty,
-        false => OptionalBody::Present(content.into_bytes().into(), None, None)
+        false => OptionalBody::Present(content.into_bytes().into(), None, None),
     };
 }
 
-fn set_headers(request: &mut Request, pact_request: &mut HttpRequest, url: Url) -> Result<(), Box<dyn Error>> {
+fn set_headers(
+    request: &mut Request,
+    pact_request: &mut HttpRequest,
+    url: Url,
+) -> Result<(), Box<dyn Error>> {
     pact_request.headers = match request.headers().is_empty() {
         true => None,
         false => {
             let mut headers_map: HashMap<String, Vec<String>> = HashMap::new();
             for header in request.headers().iter() {
-                headers_map.entry(header.field.to_string()).or_insert(vec![header.value.to_string()]).push(header.value.to_string());
+                headers_map
+                    .entry(header.field.to_string())
+                    .or_insert(vec![header.value.to_string()])
+                    .push(header.value.to_string());
             }
             Some(headers_map)
         }
@@ -80,11 +87,14 @@ fn set_host_header(pact_request: &mut HttpRequest, url: Url) -> Result<(), Box<d
 fn set_query(pact_request: &mut HttpRequest, url: &Url) {
     let mut query_map: HashMap<String, Vec<String>> = HashMap::new();
     for (key, value) in url.query_pairs() {
-        query_map.entry(key.into()).or_insert(vec![value.clone().into()]).push(value.clone().into());
+        query_map
+            .entry(key.into())
+            .or_insert(vec![value.clone().into()])
+            .push(value.clone().into());
     }
     pact_request.query = match query_map.is_empty() {
         true => None,
-        false => Some(query_map)
+        false => Some(query_map),
     };
 }
 
@@ -94,10 +104,14 @@ fn get_forward_url(request: &mut Request) -> Url {
     // strip_prefix
     let relative_url = match relative_url.strip_prefix('/') {
         Some(url) => url,
-        None => relative_url
+        None => relative_url,
     };
     let scheme = relative_url.split('/').next().unwrap().to_string();
     let host = relative_url.split('/').nth(1).unwrap().to_string();
-    let path = relative_url.split('/').skip(2).collect::<Vec<&str>>().join("/");
+    let path = relative_url
+        .split('/')
+        .skip(2)
+        .collect::<Vec<&str>>()
+        .join("/");
     Url::parse(&(scheme + "://" + host.as_str() + "/" + path.as_str())).unwrap()
 }

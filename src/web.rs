@@ -1,23 +1,25 @@
-use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
-use reqwest::{Client, RequestBuilder};
-use std::error::Error;
-use http::Method;
-#[cfg(feature = "flame_it")]
-use flamer::flame;
-#[cfg(feature = "flame_it")]
-use flame as f;
-use tiny_http::Response;
-use bytes::Bytes;
-use std::io::{Cursor};
-use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
-use tracing::debug;
 use crate::pact::pact_to_request::copy_pact_headers_to_request;
 use crate::pact::pact_to_response::pact_response_to_http_response;
 use crate::pact::response_to_pact::reqwest_response_to_pact;
+use bytes::Bytes;
+#[cfg(feature = "flame_it")]
+use flame as f;
+#[cfg(feature = "flame_it")]
+use flamer::flame;
+use http::Method;
+use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use reqwest::{Client, RequestBuilder};
+use std::error::Error;
+use std::io::Cursor;
+use tiny_http::Response;
+use tracing::debug;
 
 #[cfg_attr(feature = "flame_it", flame)]
-pub async fn get_response_from_web(pact_request: &HttpRequest) -> Result<(HttpResponse, Response<Cursor<Vec<u8>>>), Box<dyn Error>> {
+pub async fn get_response_from_web(
+    pact_request: &HttpRequest,
+) -> Result<(HttpResponse, Response<Cursor<Vec<u8>>>), Box<dyn Error>> {
     let mut pact_response = forward_get_request(pact_request).await?;
     adjust_body_and_content_length(&mut pact_response)?;
     let response = pact_response_to_http_response(&pact_response)?;
@@ -29,18 +31,18 @@ fn adjust_body_and_content_length(pact_response: &mut HttpResponse) -> Result<()
         Some(content_type) => content_type,
         None => {
             return Ok(());
-        },
+        }
     };
     if content_type.main_type == "application" && content_type.sub_type == "json" {
         adjust_body_to_pact_serialization(pact_response, content_type)?;
-        adjust_content_length(pact_response, )?;
+        adjust_content_length(pact_response)?;
     }
     Ok(())
 }
 
 fn adjust_content_length(pact_response: &mut HttpResponse) -> Result<(), Box<dyn Error>> {
     let body = match &pact_response.body {
-        OptionalBody::Present(body,_,_) => body,
+        OptionalBody::Present(body, _, _) => body,
         _ => {
             return Ok(());
         }
@@ -48,17 +50,29 @@ fn adjust_content_length(pact_response: &mut HttpResponse) -> Result<(), Box<dyn
     if pact_response.headers.is_none() {
         return Ok(());
     }
-    if pact_response.headers.as_ref().unwrap().get("content-length").is_none() {
+    if pact_response
+        .headers
+        .as_ref()
+        .unwrap()
+        .get("content-length")
+        .is_none()
+    {
         return Ok(());
     }
     let content_length = body.len();
-    let _ = pact_response.headers.as_mut().unwrap().insert("content-length".to_string(), vec![content_length.to_string()]);
+    let _ = pact_response.headers.as_mut().unwrap().insert(
+        "content-length".to_string(),
+        vec![content_length.to_string()],
+    );
     Ok(())
 }
 
-fn adjust_body_to_pact_serialization(pact_response: &mut HttpResponse, content_type: ContentType) -> Result<(), Box<dyn Error>> {
+fn adjust_body_to_pact_serialization(
+    pact_response: &mut HttpResponse,
+    content_type: ContentType,
+) -> Result<(), Box<dyn Error>> {
     let body = match &pact_response.body {
-        OptionalBody::Present(body,_,_) => body,
+        OptionalBody::Present(body, _, _) => body,
         _ => {
             return Ok(());
         }
